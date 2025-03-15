@@ -28,3 +28,15 @@ Learn more about the power of Turborepo:
 - [Filtering](https://turbo.build/repo/docs/core-concepts/monorepos/filtering)
 - [Configuration Options](https://turbo.build/repo/docs/reference/configuration)
 - [CLI Usage](https://turbo.build/repo/docs/reference/command-line-reference)
+
+
+### ROAD MAP
+The following features are planned for future updates:
+
+- [ ] **Create New UI**: Design and implement a new user interface to enhance user experience and accessibility.
+- [ ] **Create Full Validation**: Implement comprehensive validation mechanisms to ensure data integrity and security.
+- [ ] **Create Admin Page**: Develop an admin page to manage users, settings, and monitor system performance.
+- [ ] **Using Biometric Authentication**: Integrate biometric authentication methods (e.g., fingerprint, facial recognition) for enhanced security.
+- [ ] **Allow Sharing Files Between Network**: Enable file sharing capabilities within the network to facilitate collaboration and resource sharing.
+- [ ] **Test in Local Network Without Internet**: Conduct thorough testing in a local network environment without internet access to ensure reliability and performance in offline scenarios.
+
