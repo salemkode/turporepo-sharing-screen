@@ -1,12 +1,12 @@
 'use client';
 import { io, Socket } from 'socket.io-client';
-import { useState, useRef } from 'react';
-import { Button } from './_components/Button';
-import { createDevice } from '../utils/mediasoup';
+import { useState, useRef, useEffect } from 'react';
+import { Button } from '../_components/Button';
+import { createDevice } from '../../utils/mediasoup';
 import { Device } from 'mediasoup-client';
 import Link from 'next/link';
 import { Transport } from 'mediasoup-client/lib/Transport';
-import { AppData, Producer } from 'mediasoup-client/lib/types';
+import { AppData } from 'mediasoup-client/lib/types';
 
 type Status =
   | 'disconnected'
@@ -18,10 +18,9 @@ const VideoStreamPage = () => {
   const [socket, setSocket] = useState<Socket | null>(null);
   const [status, setStatus] = useState<Status>('disconnected');
   const [device, setDevice] = useState<Device | null>(null);
-  const [producerTransport, setProducerTransport] = useState<
+  const [consumerTransport, setConsumerTransport] = useState<
     Transport<AppData> | undefined
   >();
-  const [localStream, setLocalStream] = useState<MediaStream | null>(null);
   const videoPreviewRef = useRef<HTMLVideoElement>(null);
 
   const connect = () => {
@@ -48,18 +47,13 @@ const VideoStreamPage = () => {
     setStatus(device.loaded ? 'created-device' : 'disconnected');
   };
 
-  const produceScreen = async () => {
+  const consumeScreen = async () => {
     if (status !== 'created-device' || !socket) return;
-    const screen = await navigator.mediaDevices.getDisplayMedia();
-    setLocalStream(screen);
-    if (videoPreviewRef.current) {
-      videoPreviewRef.current.srcObject = screen;
-      videoPreviewRef.current.play().catch(console.error);
-    }
 
+    // I will use the same transport for both producer and consumer
     const data = await socket.emitWithAck('create-producer-transport');
-    const producer = device?.createSendTransport(data);
-    setProducerTransport(producer);
+    const producer = device?.createRecvTransport(data);
+    setConsumerTransport(producer);
     if (!producer) return;
     setStatus('created-producer');
 
@@ -94,15 +88,40 @@ const VideoStreamPage = () => {
     });
   };
 
-  const publishFeed = async () => {
-    if (status !== 'created-producer' || !socket) return;
-    const track = localStream?.getTracks()[0];
-    await producerTransport?.produce({
-      track,
+  const consumeFeed = async () => {
+    if (status !== 'created-producer' || !socket || !device) return;
+    const consumerParams = await socket.emitWithAck('consume-media', {
+      rtpCapabilities: device.rtpCapabilities,
     });
+    console.log('consume-media', device.rtpCapabilities);
+    if ('error' in consumerParams) {
+      console.error('consume-media', consumerParams.error);
+      return;
+    }
+
+    const consumer = await consumerTransport?.consume({
+      producerId: consumerParams.producerId,
+      id: consumerParams.id,
+      kind: consumerParams.kind,
+      rtpParameters: consumerParams.rtpParameters,
+    });
+
+    const videoElement = videoPreviewRef.current;
+    if (!videoElement || !consumer?.track) return;
+    videoElement.srcObject = new MediaStream([consumer.track]);
+    socket.emit('unpause-consumer');
   };
+
+  useEffect(() => {
+    (async () => {
+      await consumeFeed();
+      await loadDevice();
+      await consumeScreen();
+      await consumeFeed();
+    })();
+  }, []);
   return (
-    <main className="min-h-screen bg-gray-100 p-4">
+    <main className="min-h-screen bg-gray-100 p-4" onLoad={() => alert('load')}>
       <h1 className="text-3xl font-bold text-center mb-8 text-gray-800">
         Video Stream {status} {socket ? 'socket' : 'no socket'}
       </h1>
@@ -116,32 +135,29 @@ const VideoStreamPage = () => {
             Create & Load device
           </Button>
           <Button
-            onClick={produceScreen}
+            onClick={consumeScreen}
             disabled={status !== 'created-device'}
           >
-            Create & Producer
+            Create & Consumer
           </Button>
           <Button
             disabled={status !== 'created-producer'}
-            onClick={publishFeed}
+            onClick={consumeFeed}
           >
-            Publish Feed
+            Consume Feed
           </Button>
         </div>
 
-        <div className="flex flex-col md:flex-row gap-4">
-          <video
-            ref={videoPreviewRef}
-            className="w-full md:w-1/2 bg-black rounded-lg aspect-video"
-            controls={true}
-          />
-        </div>
-
+        <video
+          ref={videoPreviewRef}
+          className="w-full bg-black rounded-lg aspect-video"
+          controls={true}
+        />
         <Link
-          href="/feed"
+          href="/"
           className="p-3 rounded-md bg-gray-800 my-5 text-white block"
         >
-          Feed
+          Home
         </Link>
       </div>
     </main>

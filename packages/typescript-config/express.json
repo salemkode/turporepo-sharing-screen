@@ -1,0 +1,11 @@
+{
+  "$schema": "https://json.schemastore.org/tsconfig",
+  "extends": "../../tsconfig.json",
+  "compilerOptions": {
+    "outDir": "../../dist/out-tsc",
+    "types": ["node", "express"],
+    "resolveJsonModule": true,
+  },
+  "include": ["../../apps/express/**/*.ts"],
+  "exclude": ["node_modules", "dist"]
+}

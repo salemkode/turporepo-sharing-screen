@@ -1,0 +1,21 @@
+{
+  "name": "@repo/validators",
+  "type": "module",
+  "scripts": {
+    "dev": "tsc --watch",
+    "build": "tsc"
+  },
+  "exports": {
+    "./mediasoup": {
+      "types": "./src/mediasoup.validator.ts",
+      "default": "./dist/mediasoup.validator.js"
+    }
+  },
+  "dependencies": {
+    "arktype": "^2.1.9"
+  },
+  "devDependencies": {
+    "@repo/typescript-config": "workspace:*",
+    "typescript": "latest"
+  }
+}
