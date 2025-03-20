@@ -5,7 +5,8 @@
         "rootDir": "src"
     },
     "include": [
-        "src"
+        "src",
+        "../../apps/web/utils/mediasoup.validator.ts"
     ],
     "exclude": [
         "node_modules",

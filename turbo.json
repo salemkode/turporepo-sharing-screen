@@ -6,7 +6,10 @@
   "tasks": {
     "dev": {
       "cache": false,
-      "persistent": true
+      "persistent": true,
+      "dependsOn": [
+        "@repo/validators#build"
+      ]
     },
     "build": {
       "dependsOn": [

@@ -4,6 +4,7 @@ import { Server } from 'socket.io';
 import config from './config.js';
 import createWorker from './createWorker.js';
 import type MediaSoup from 'mediasoup';
+import { RtpCapabilities as RtpCapabilitiesValidator, ClientTransportParams as ClientTransportParamsValidator } from '@repo/validators/mediasoup';
 const app = express();
 const server = http.createServer(app);
 const io = new Server(server, {
@@ -36,16 +37,18 @@ io.on('connection', (socket) => {
   let transport: MediaSoup.types.WebRtcTransport | undefined;
   let consumer: MediaSoup.types.Consumer | undefined;
 
-  console.log('a user connected');
+  socket.on(
+    'get-router-rtp-capabilities',
+    async (ack: (rtpCapabilities: typeof RtpCapabilitiesValidator.infer) => void) => {
+      console.log('get-router-rtp-capabilities');
+      const rtpCapabilities = router?.rtpCapabilities;
+      if (!rtpCapabilities) return;
+      ack(rtpCapabilities);
+    },
+  );
 
-  socket.on('get-router-rtp-capabilities', async (ack) => {
-    console.log('get-router-rtp-capabilities');
-    const rtpCapabilities = router?.rtpCapabilities;
-    ack(rtpCapabilities);
-  });
-
-  socket.on('create-transport', async (ack) => {
-    console.log('create-producer-transport');
+  socket.on('create-transport', async (ack: (transport: typeof ClientTransportParamsValidator.infer) => void) => {
+    console.log('create-transport');
     if (!router) {
       ack({ error: 'Router not initialized' });
       return;
@@ -55,10 +58,12 @@ io.on('connection', (socket) => {
         {
           protocol: 'udp',
           ip: '127.0.0.1',
+          announcedIp: '127.0.0.1',
         },
         {
           protocol: 'tcp',
           ip: '127.0.0.1',
+          announcedIp: '127.0.0.1',
         },
       ],
       enableUdp: true,
@@ -73,19 +78,26 @@ io.on('connection', (socket) => {
       dtlsParameters: transport.dtlsParameters,
     };
     ack(clientTransportParams);
+    console.log('transport created', transport.id);
   });
 
   socket.on('transport-connect', async (params, ack) => {
     try {
       await transport?.connect(params);
       ack({ success: true });
+      if (params.id === producer?.id) {
+        producer?.resume();
+      }
     } catch (error) {
       console.error('transport-connect', error);
       ack({ success: false });
     }
   });
 
-  socket.on('start-produce', async (params, ack) => {
+  socket.on('start-produce', async (params, ack: (producerId?: {
+    success: boolean,
+    producerId?: string,
+  }) => void) => {
     try {
       producer = await transport?.produce({
         id: params.id,
@@ -93,16 +105,27 @@ io.on('connection', (socket) => {
         rtpParameters: params.rtpParameters,
         paused: false,
       });
-      ack(producer?.id);
+      ack({
+        success: true,
+        producerId: producer?.id,
+      });
+
+      io.emit('producer-created', producer?.id);
     } catch (error) {
       console.error('start-produce', error);
-      ack('error');
+      ack({
+        success: false,
+        producerId: undefined,
+      });
     }
   });
 
   socket.on('consume-media', async ({ rtpCapabilities }, ack) => {
     // setup client consumer
-    if (!producer || !router?.canConsume({ producerId: producer.id, rtpCapabilities })) {
+    if (
+      !producer ||
+      !router?.canConsume({ producerId: producer.id, rtpCapabilities })
+    ) {
       ack({ error: 'Router cannot consume media' });
       return;
     }

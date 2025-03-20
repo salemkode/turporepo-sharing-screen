@@ -39,4 +39,5 @@ The following features are planned for future updates:
 - [ ] **Using Biometric Authentication**: Integrate biometric authentication methods (e.g., fingerprint, facial recognition) for enhanced security.
 - [ ] **Allow Sharing Files Between Network**: Enable file sharing capabilities within the network to facilitate collaboration and resource sharing.
 - [ ] **Test in Local Network Without Internet**: Conduct thorough testing in a local network environment without internet access to ensure reliability and performance in offline scenarios.
+- [ ] **Create docker file**: For easer deploy in any machina
 

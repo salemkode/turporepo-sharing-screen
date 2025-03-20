@@ -5,7 +5,7 @@
   "main": "index.js",
   "type": "module",
   "scripts": {
-    "dev": "nodemon index.js",
+    "dev": "tsx --watch index.ts",
     "start": "tsx index.ts"
   },
   "keywords": [],
@@ -14,7 +14,8 @@
   "dependencies": {
     "express": "^4.21.2",
     "mediasoup": "^3.15.5",
-    "socket.io": "^4.8.1"
+    "socket.io": "^4.8.1",
+    "@repo/validators": "workspace:*"
   },
   "devDependencies": {
     "@types/express": "^4.17.17",

@@ -5,14 +5,25 @@
       {
         "name": "next"
       }
-    ]
+    ],
+    "paths": {
+      "@/*": ["./*"]
+    }
   },
   "include": [
     "next-env.d.ts",
     "next.config.js",
     "**/*.ts",
     "**/*.tsx",
-    ".next/types/**/*.ts"
+    ".next/types/**/*.ts",
+    "../../packages/ui/src/button.tsx",
+    "../../packages/ui/src/card.tsx",
+    "../../packages/ui/src/input.tsx",
+    "../../packages/ui/src/toast.tsx",
+    "../../packages/ui/src/toaster.tsx",
+    "../../packages/ui/src/lib/utils.ts"
   ],
-  "exclude": ["node_modules"]
+  "exclude": [
+    "node_modules"
+  ]
 }

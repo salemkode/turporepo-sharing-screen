@@ -1,6 +1,12 @@
 import * as mediasoup from 'mediasoup-client';
 import { RtpCapabilities } from 'mediasoup-client/lib/RtpParameters';
-import { getDeviceCapabilities } from './signaling';
+import {
+  createTransport,
+  getConsumerParams,
+  getDeviceCapabilities,
+  startProduce,
+  transportConnect,
+} from './signaling';
 
 export const createDevice = async (rtpCapabilities: RtpCapabilities) => {
   const device = new mediasoup.Device();
@@ -8,72 +14,67 @@ export const createDevice = async (rtpCapabilities: RtpCapabilities) => {
   return device;
 };
 
-export const consumerFlow = async () => {
+const getTransportData = async () => {
   const rtpCapabilities = await getDeviceCapabilities();
   const device = await createDevice(rtpCapabilities);
+  const clientTransportParams = await createTransport();
+  return { device, clientTransportParams };
 };
-
-const consumeScreen = async () => {
-  if (status !== 'created-device' || !socket) return;
-
-  // I will use the same transport for both producer and consumer
-  const data = await socket.emitWithAck('create-producer-transport');
-  const producer = device?.createRecvTransport(data);
-  setConsumerTransport(producer);
-  if (!producer) return;
-  setStatus('created-producer');
-
-  // Transport will not fire until transport.produce() is called
-  producer?.on('connect', async ({ dtlsParameters }, callback, errback) => {
-    console.log('connect', dtlsParameters);
-    const response: { success: boolean } = await socket?.emitWithAck(
-      'transport-connect',
-      {
-        transportId: producer.id,
-        dtlsParameters,
-      },
-    );
-    console.log('transport-connect', response);
-    if (response.success) {
-      callback();
-      setStatus('completed');
-    } else {
-      errback(new Error('Failed to connect'));
-    }
-  });
-
-  producer?.on('produce', async (param, callback, errback) => {
-    const response = await socket?.emitWithAck('start-produce', param);
-    console.log('start-produce', response);
-    if (response === 'error') {
-      errback(new Error('Failed to start produce'));
-    } else {
-      console.log('Congratulations! You are connected to the server');
-      callback(response);
-    }
-  });
-};
-
-const consumeFeed = async () => {
-  if (status !== 'created-producer' || !socket || !device) return;
-  const consumerParams = await socket.emitWithAck('consume-media', {
-    rtpCapabilities: device.rtpCapabilities,
-  });
-  console.log('consume-media', device.rtpCapabilities);
-  if ('error' in consumerParams) {
-    console.error('consume-media', consumerParams.error);
+export const consumerFlow = async () => {
+  const { device, clientTransportParams } = await getTransportData();
+  if (!device || 'error' in clientTransportParams) {
+    alert('Failed to get transport data');
     return;
   }
+  const producer = device?.createRecvTransport(clientTransportParams);
+  // Transport will not fire until transport.produce() is called
+  producer?.on('connect', async ({ dtlsParameters }, callback, err) => {
+    const response = await transportConnect(producer.id, dtlsParameters);
+    if (!response.success) {
+      err(new Error('Failed to connect'));
+    } else {
+      callback();
+    }
+  });
 
-  const consumer = await consumerTransport?.consume({
+  const consumerParams = await getConsumerParams(device.rtpCapabilities);
+  const consumer = await producer?.consume({
     producerId: consumerParams.producerId,
     id: consumerParams.id,
     kind: consumerParams.kind,
     rtpParameters: consumerParams.rtpParameters,
   });
+  return consumer;
+};
 
-  const videoElement = videoPreviewRef.current;
-  if (!videoElement || !consumer?.track) return;
-  videoElement.srcObject = new MediaStream([consumer.track]);
-  socket.emit('unpause-consumer');
+export const createProducer = async () => {
+  const { device, clientTransportParams } = await getTransportData();
+  if (!device || 'error' in clientTransportParams) {
+    alert('Failed to get transport data');
+    return;
+  }
+
+  const producer = device?.createSendTransport(clientTransportParams);
+
+  // Transport will not fire until transport.produce() is called
+  // Transport will not fire until transport.produce() is called
+  producer?.on('connect', async ({ dtlsParameters }, callback, err) => {
+    const response = await transportConnect(producer.id, dtlsParameters);
+    if (!response.success) {
+      err(new Error('Failed to connect'));
+    } else {
+      callback();
+    }
+  });
+
+  producer?.on('produce', async (param, callback, err) => {
+    const response = await startProduce(param);
+    if (!response.success) {
+      err(new Error('Failed to start produce'));
+    } else {
+      console.log('Congratulations! You are connected to the server');
+      callback({ id: response.producerId });
+    }
+  });
+  return producer;
 };
